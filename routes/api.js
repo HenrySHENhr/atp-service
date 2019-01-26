@@ -10,24 +10,43 @@ let getSolrData = () => {
     port: 8983,
     path: '/solr/shen_sample/select?q=*:*&rows=1&wt=json'
   };
-  let content = ''
-  let solrReq = http.request(opt, (res) => {
-    console.log(`${opt.method} ${opt.host}:${opt.port}${opt.path}`)
-    console.log(`Status: ${res.statusCode}`)
-    res.setEncoding('utf8')
-    res.on('data', (chunk) => {
-      content += chunk
+  // let content = ''
+  // let solrReq = http.request(opt, (res) => {
+  //   console.log(`${opt.method} ${opt.host}:${opt.port}${opt.path}`)
+  //   console.log(`Status: ${res.statusCode}`)
+  //   res.setEncoding('utf8')
+  //   res.on('data', (chunk) => {
+  //     content += chunk
+  //   });
+  //   res.on('end', () => {
+  //     console.log(`Size: ${content.length}`)
+  //     content = JSON.parse(content)
+  //   });
+  // });
+  // solrReq.on('error', (err) => {
+  //   console.error(err)
+  // });
+  // solrReq.end()
+  // return content
+
+  return new Promise((resolve, reject) => {
+    let req = http.request(opt, function (res) {
+      console.log(`${opt.method} ${opt.host}:${opt.port}${opt.path}`)
+      console.log(`Status: ${res.statusCode}`)
+      res.setEncoding('utf8')
+      let content = ''
+      res.on('data', function (chunk) {
+        content += chunk
+      });
+      res.on('end', function () {
+        resolve(JSON.parse(content))
+      });
     });
-    res.on('end', () => {
-      console.log(`Size: ${content.length}`)
-      content = JSON.parse(content)
+    req.on('error', (err) => {
+      console.error(err)
     });
-  });
-  solrReq.on('error', (err) => {
-    console.error(err)
-  });
-  solrReq.end()
-  return content
+    req.end()
+  })
 }
 
 let writeExcel = (data) => {
@@ -68,44 +87,12 @@ let writeExcel = (data) => {
 router.prefix('/api')
 
 router.get('/', async (ctx, next) => {
-  const opt = {
-    method: 'GET',
-    host: 'localhost',
-    port: 8983,
-    path: '/solr/shen_sample/select?q=*:*&rows=1&wt=json'
-  };
-  let solrReq = http.request(opt, (res) => {
-    console.log(`${opt.method} ${opt.host}:${opt.port}${opt.path}`)
-    console.log(`Status: ${res.statusCode}`)
-    res.setEncoding('utf8')
-    let content = ''
-    res.on('data', (chunk) => {
-      content += chunk
-    });
-    res.on('end', () => {
-      console.log(`Size: ${content.length}`)
-      content = JSON.parse(content)
-      let result = writeExcel(content)
-      let data = new Buffer(result, 'binary')
-      ctx.type = 'application/vnd.openxmlformats'
-      ctx.response.attachment('data.xlsx')
-      ctx.body = data
-    });
-  });
-  solrReq.on('error', (err) => {
-    console.error(err)
-  });
-  solrReq.end()
-
-
-
-
-  // let solrData = getSolrData()
-  // let result = writeExcel(solrData)
-  // let data = new Buffer(result, 'binary')
-  // ctx.type = 'application/vnd.openxmlformats'
-  // ctx.response.attachment('data.xlsx')
-  // ctx.body = data
+  let solrData = await getSolrData()
+  let result = writeExcel(solrData)
+  let data = new Buffer(result, 'binary')
+  ctx.type = 'application/vnd.openxmlformats'
+  ctx.response.attachment('data.xlsx')
+  ctx.body = data
 
   // ctx.type = 'application/json'
   // ctx.body = {
