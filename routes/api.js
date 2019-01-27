@@ -99,7 +99,7 @@ router.post('/', async (ctx, next) => {
       }
     }
   } catch (err) {
-    console.warn(err.stack)
+    console.error(err.stack)
     ctx.status = err.statusCode || err.status || 500;
     ctx.body = {
       message: err.message
