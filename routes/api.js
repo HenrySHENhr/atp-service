@@ -3,16 +3,10 @@ const http = require('http')
 const fs = require('fs')
 const excel = require('excel-export')
 
-let getSolrData = () => {
-  const opt = {
-    method: 'GET',
-    host: 'localhost',
-    port: 8983,
-    path: '/solr/shen_sample/select?q=*:*&rows=1&wt=json'
-  };
+let getSolrData = (query) => {
   return new Promise((resolve, reject) => {
-    let req = http.request(opt, function (res) {
-      console.log(`${opt.method} ${opt.host}:${opt.port}${opt.path}`)
+    let req = http.get(query, function (res) {
+      console.log(`GET ${query}`)
       console.log(`Status: ${res.statusCode}`)
       res.setEncoding('utf8')
       let content = ''
@@ -25,6 +19,7 @@ let getSolrData = () => {
     });
     req.on('error', (err) => {
       console.error(err)
+      resolve()
     });
     req.end()
   })
@@ -79,12 +74,29 @@ router.get('/', async (ctx, next) => {
 })
 
 router.post('/', async (ctx, next) => {
-  let solrData = await getSolrData()
-  let result = writeExcel(solrData)
-  let data = new Buffer(result, 'binary')
-  ctx.type = 'application/vnd.openxmlformats'
-  ctx.response.attachment('data.xlsx')
-  ctx.body = data
+  try {
+    let query = ctx.request.body
+    query = JSON.parse(query)['query']
+    let solrData = await getSolrData(query)
+    if (!solrData || solrData == '') {
+      console.log('Solr connection error.')
+      ctx.status = 500;
+      ctx.body = {
+        message: 'Solr connection error.'
+      };
+    } else {
+      let result = writeExcel(solrData)
+      let data = new Buffer(result, 'binary')
+      ctx.type = 'application/vnd.openxmlformats'
+      ctx.response.attachment('data.xlsx')
+      ctx.body = data
+    }
+  } catch (err) {
+    ctx.status = err.statusCode || err.status || 500;
+    ctx.body = {
+      message: err.message
+    };
+  }
 })
 
 module.exports = router
