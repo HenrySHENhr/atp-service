@@ -77,19 +77,26 @@ router.post('/', async (ctx, next) => {
   try {
     let query = ctx.request.body
     query = JSON.parse(query)['query']
-    let solrData = await getSolrData(query)
-    if (!solrData || solrData == '') {
-      console.log('Solr connection error.')
-      ctx.status = 500;
+    if (!query || query == '') {
+      ctx.status = 404;
       ctx.body = {
-        message: 'Solr connection error.'
+        message: 'Please provide Solr query.'
       };
     } else {
-      let result = writeExcel(solrData)
-      let data = new Buffer(result, 'binary')
-      ctx.type = 'application/vnd.openxmlformats'
-      ctx.response.attachment('data.xlsx')
-      ctx.body = data
+      let solrData = await getSolrData(query)
+      if (!solrData || solrData == '') {
+        console.log('Solr connection error.')
+        ctx.status = 500;
+        ctx.body = {
+          message: 'Solr connection error.'
+        };
+      } else {
+        let result = writeExcel(solrData)
+        let data = new Buffer(result, 'binary')
+        ctx.type = 'application/vnd.openxmlformats'
+        ctx.response.attachment('data.xlsx')
+        ctx.body = data
+      }
     }
   } catch (err) {
     ctx.status = err.statusCode || err.status || 500;
