@@ -25,8 +25,7 @@ let getSolrData = (query) => {
   })
 }
 
-let writeExcel = (data) => {
-  const columns = ['id', 'name']
+let writeExcel = (data, columns) => {
   const address = 'temp/data.xml'
   fs.exists(address, function (exist) {
     if (!exist) {
@@ -75,12 +74,13 @@ router.get('/', async (ctx, next) => {
 
 router.post('/', async (ctx, next) => {
   try {
-    let query = ctx.request.body
-    query = JSON.parse(query)['query']
-    if (!query || query == '') {
+    let body = ctx.request.body
+    let query = JSON.parse(body)['query']
+    let columns = JSON.parse(body)['columns']
+    if (!query || query == '' || !columns || columns == '') {
       ctx.status = 404;
       ctx.body = {
-        message: 'Please provide Solr query.'
+        message: 'Please provide Solr query and excel columns.'
       };
     } else {
       let solrData = await getSolrData(query)
@@ -91,7 +91,7 @@ router.post('/', async (ctx, next) => {
           message: 'Solr connection error.'
         };
       } else {
-        let result = writeExcel(solrData)
+        let result = writeExcel(solrData, columns)
         let data = new Buffer(result, 'binary')
         ctx.type = 'application/vnd.openxmlformats'
         ctx.response.attachment('data.xlsx')
@@ -99,6 +99,7 @@ router.post('/', async (ctx, next) => {
       }
     }
   } catch (err) {
+    console.warn(err.stack)
     ctx.status = err.statusCode || err.status || 500;
     ctx.body = {
       message: err.message
